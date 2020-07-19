@@ -10,7 +10,7 @@ from time import sleep
 
 adminEmail = "ndarrow@cisco.com" #this is the only admin that will trigger the script execution
 TS  = 3 #interval in seconds
-org_id = '121177' #your ORGID
+org_id = '12117217' #your ORGID
 
 tag_exclude = "NOAPI"   #Network Wide, Switch or Port level. Use this tag to exclude from being changed/read
 tag_VVLAN = "V:"         #TAG on switch indicating voice vlan 'V:555' would represent vlan 555 
