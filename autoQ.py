@@ -8,9 +8,10 @@ from time import sleep
 
 #*****************************************************USER SETTINGS BELOW
 
-adminEmail = "apiAdmin@something.com" #this is the only admin that will trigger the script execution
+adminEmail = "admin@something.com" #this is the only admin that will trigger the script execution
 TS  = 3 #interval in seconds
-org_id = '12123423172347' #your ORGID
+bounce = 5 #seconds to bounce port (for IP/DHCP starvation)
+org_id = '121342342347' #your ORGID
 
 tag_exclude = "NOAPI"   #Network Wide, Switch or Port level. Use this tag to exclude from being changed/read
 tag_VVLAN = "V:"         #TAG on switch indicating voice vlan 'V:555' would represent vlan 555 
@@ -67,7 +68,7 @@ while True:
                 print(cl)
                 #THIS IS WHERE THE PORT WILL GET ISOLATED
                 if tag_action_isolate in newV: #is the port quarantined?
-                    if not tag_action_isolate in oldV: #is it a new quarantine? prevents other tag changes from triggering
+                    if not tag_action_isolate in oldV and not tag_action_isolate.upper() in oldV: #is it a new quarantine? prevents other tag changes from triggering
                         print("\nPORT GETTING QUARANTINED")
                         net_id = cl['networkId']    
                         if cl['page'] == 'via API':
@@ -97,8 +98,11 @@ while True:
                                 else:
                                     qvlan = qvlan_default
 
-                                if(WRITE): result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,vlan=qvlan,tags=newTag, isolationEnabled=True, )
-                                print(result)
+                                if(WRITE): 
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,vlan=qvlan, enabled= False, tags=newTag, isolationEnabled=True, )
+                                    sleep(bounce)
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,enabled= True)
+
                             elif 'type' in port and not port['type'] == 'access':
                                 print("Port is not an access port. Removing TAG")
                                 newTag = port['tags'].replace(tag_action_isolate,'').strip()
@@ -133,12 +137,16 @@ while True:
                             if 'type' in port and 'tags' in port and port['type'] == 'access' and not tag_exclude in port['tags']: #is it access port and not excluded?
                                 newTag = port['tags'].replace(tag_action_default,'').strip()
                                 newTag = newTag.replace(tag_action_isolate.upper(),'').strip()
+                                newTag = newTag.replace(tag_action_isolate,'').strip()
                                 print("WRITING")
                                 if 'D' in vqd:
                                     dvlan = int(vqd['D'])
                                 else:
                                     dvlan = dvlan_default
-                                if(WRITE): result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,vlan=dvlan,tags=newTag, isolationEnabled=False)
+                                if(WRITE): 
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, enabled= False, vlan=dvlan,tags=newTag, isolationEnabled=False)
+                                    sleep(bounce)
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, enabled= True)
                                 #print(result)
                             elif 'type' in port and not port['type'] == 'access':
                                 print("Port is not an access port. Removing TAG")
