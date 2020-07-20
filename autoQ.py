@@ -4,14 +4,14 @@ import meraki
 from datetime import datetime
 import time
 from time import sleep
-
+import os,sys
 
 #*****************************************************USER SETTINGS BELOW
 
-adminEmail = "admin@something.com" #this is the only admin that will trigger the script execution
+adminEmail = "nico.darrow@gmail.com" #this is the only admin that will trigger the script execution
 TS  = 3 #interval in seconds
-bounce = 5 #seconds to bounce port (for IP/DHCP starvation)
-org_id = '12343242134237' #your ORGID
+bounce = 30 #seconds to bounce port (for IP/DHCP starvation)
+org_id = '121177' #your ORGID
 
 tag_exclude = "NOAPI"   #Network Wide, Switch or Port level. Use this tag to exclude from being changed/read
 tag_VVLAN = "V:"         #TAG on switch indicating voice vlan 'V:555' would represent vlan 555 
@@ -100,9 +100,8 @@ while True:
                                     qvlan = qvlan_default
 
                                 if(WRITE): 
-                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,name= portTAG, vlan=qvlan, enabled= False, tags=newTag, isolationEnabled=True, )
-                                    sleep(bounce)
-                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,enabled= True)
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,name= portTAG, vlan=qvlan, tags=newTag, isolationEnabled=True )
+                                    os.system(f'./autoQ_bounce.py {sn} {switchPort} {bounce} &')
 
                             elif 'type' in port and not port['type'] == 'access':
                                 print("Port is not an access port. Removing TAG")
@@ -145,9 +144,8 @@ while True:
                                 else:
                                     dvlan = dvlan_default
                                 if(WRITE): 
-                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, enabled= False, name="", vlan=dvlan,tags=newTag, isolationEnabled=False)
-                                    sleep(bounce)
-                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, enabled= True)
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, name="", vlan=dvlan,tags=newTag, isolationEnabled=False)
+                                    os.system(f'./autoQ_bounce.py {sn} {switchPort} {bounce} &')
                                 #print(result)
                             elif 'type' in port and not port['type'] == 'access':
                                 print("Port is not an access port. Removing TAG")
