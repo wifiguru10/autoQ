@@ -8,10 +8,10 @@ import os,sys
 
 #*****************************************************USER SETTINGS BELOW
 
-adminEmail = "nico.darrow@gmail.com" #this is the only admin that will trigger the script execution
+adminEmail = "admin@something.com" #this is the only admin that will trigger the script execution
 TS  = 3 #interval in seconds
 bounce = 30 #seconds to bounce port (for IP/DHCP starvation)
-org_id = '121177' #your ORGID
+org_id = '1321234233347' #your ORGID
 
 tag_exclude = "NOAPI"   #Network Wide, Switch or Port level. Use this tag to exclude from being changed/read
 tag_VVLAN = "V:"         #TAG on switch indicating voice vlan 'V:555' would represent vlan 555 
