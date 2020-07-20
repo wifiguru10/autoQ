@@ -1,5 +1,5 @@
 # autoQ
-Script to automatically quarantine or default a port based on the port TAG. 
+Script to automatically quarantine or default a port based on the port TAG. The use case is to integrate into 3rd party security systems like Forescout.
 
 
 # Steps
