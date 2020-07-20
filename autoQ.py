@@ -8,10 +8,10 @@ from time import sleep
 
 #*****************************************************USER SETTINGS BELOW
 
-adminEmail = "admin@something.com" #this is the only admin that will trigger the script execution
+adminEmail = "nico.darrow@gmail.com" #this is the only admin that will trigger the script execution
 TS  = 3 #interval in seconds
 bounce = 5 #seconds to bounce port (for IP/DHCP starvation)
-org_id = '121342342347' #your ORGID
+org_id = '121177' #your ORGID
 
 tag_exclude = "NOAPI"   #Network Wide, Switch or Port level. Use this tag to exclude from being changed/read
 tag_VVLAN = "V:"         #TAG on switch indicating voice vlan 'V:555' would represent vlan 555 
@@ -21,6 +21,7 @@ tag_DLAN = "D:"         #same as above for data
 tag_action_isolate = 'quarantine'
 tag_action_default = 'default'
 
+portTAG       = "QUARANTINED"
 qvlan_default = 999
 dvlan_default = 101
 vvlan_default = 102
@@ -99,7 +100,7 @@ while True:
                                     qvlan = qvlan_default
 
                                 if(WRITE): 
-                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,vlan=qvlan, enabled= False, tags=newTag, isolationEnabled=True, )
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,name= portTAG, vlan=qvlan, enabled= False, tags=newTag, isolationEnabled=True, )
                                     sleep(bounce)
                                     result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,enabled= True)
 
@@ -144,7 +145,7 @@ while True:
                                 else:
                                     dvlan = dvlan_default
                                 if(WRITE): 
-                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, enabled= False, vlan=dvlan,tags=newTag, isolationEnabled=False)
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, enabled= False, name="", vlan=dvlan,tags=newTag, isolationEnabled=False)
                                     sleep(bounce)
                                     result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, enabled= True)
                                 #print(result)
