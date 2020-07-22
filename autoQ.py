@@ -9,17 +9,19 @@ import os,sys
 #*****************************************************USER SETTINGS BELOW
 
 adminEmail = "admin@something.com" #this is the only admin that will trigger the script execution
-TS  = 3 #interval in seconds
+TS  = 4 #interval in seconds
 bounce = 30 #seconds to bounce port (for IP/DHCP starvation)
-org_id = '1321234233347' #your ORGID
+org_id = '12123423421' #your ORGID
 
 tag_exclude = "NOAPI"   #Network Wide, Switch or Port level. Use this tag to exclude from being changed/read
 tag_VVLAN = "V:"         #TAG on switch indicating voice vlan 'V:555' would represent vlan 555 
 tag_QLAN = "Q:"         #same as above for quarantine
 tag_DLAN = "D:"         #same as above for data
 
-tag_action_isolate = 'quarantine'
+
+tag_action_isolate = 'quarantine' 
 tag_action_default = 'default'
+tag_action_visolate    = 'voiceblock' #make sure you do not set this to a superset of isolate command. (ie. don't use 'vquarantine')
 
 portTAG       = "QUARANTINED"
 qvlan_default = 999
@@ -58,7 +60,7 @@ def get_VQD(tags):
 #Main Loop
 while True:
 
-    cl30 = db.change_log.getOrganizationConfigurationChanges(org_id,timespan=TS+2)
+    cl30 = db.change_log.getOrganizationConfigurationChanges(org_id,timespan=TS+3)
     for cl in cl30:
 #       print(cl)
         if cl['adminEmail'] == adminEmail:
@@ -112,6 +114,52 @@ while True:
                             print(cl)
                             print("\n")
 
+                #THIS IS WHERE THE VOICE PORT WILL GET ISOLATED
+                if tag_action_visolate in newV: #is the port quarantined?
+                    if not tag_action_visolate in oldV and not tag_action_visolate.upper() in oldV: #is it a new quarantine? prevents other tag changes from triggering
+                        print("\nPORT GETTING VOICE QUARANTINED")
+                        net_id = cl['networkId']    
+                        if cl['page'] == 'via API':
+                            tsn = cl['label'].split('/')[4]
+                            switchName = db.devices.getNetworkDevice(net_id,tsn)['name']
+                            print("FOUND IT")
+                            print(switchName)
+                            switchPort = cl['label'].split('/')[6]
+                        else:
+
+                            switchName = cl['label'].split('/')[0].strip() #Gets name from  'Switch / 2' 
+                            switchPort = cl['label'].split('/')[1].strip() #Gets port from  'Switch / 2'
+                        sw = get_SW(db,net_id,switchName) #returns switch object
+                        sn = sw['serial']
+                        vqd = get_VQD(sw['tags']) #{'D': '101', 'Q': '999', 'V': '202'} Parsed Voice/Data/Quarantine vlanID
+                        print(f'Parsed VQD[{vqd}]')
+                        print(f'Switch[{switchName}] Port[{switchPort}] Serial[{sn}]')
+                        port = db.switch_ports.getDeviceSwitchPort(sn,switchPort) 
+                        print(port)
+                        try:
+                            if 'type' in port and 'tags' in port and  port['type'] == 'access' and not tag_exclude in port['tags']: #is it access port and not excluded?
+                                newTag = port['tags'].replace(tag_action_visolate,'').strip() + " " + tag_action_visolate.upper()
+                                print(newTag)
+                                print("WRITING")
+                                if 'Q' in vqd:
+                                    qvlan = int(vqd['Q'])
+                                else:
+                                    qvlan = qvlan_default
+
+                                if(WRITE): 
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,name= portTAG, voiceVlan=qvlan, tags=newTag, isolationEnabled=True )
+                                    os.system(f'./autoQ_bounce.py {sn} {switchPort} {bounce} &')
+
+                            elif 'type' in port and not port['type'] == 'access':
+                                print("Port is not an access port. Removing TAG")
+                                newTag = port['tags'].replace(tag_action_visolate,'').strip()
+                                if(WRITE): result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort,tags=newTag)
+                        except TypeError:
+                            print("\n\nTYPE ERROR")
+                            print(cl)
+                            print("\n")
+
+
                 #THIS IS WHERE THE PORT WILL GET DEFAULTED
                 if tag_action_default in newV: #is the port defaulted
                     if not tag_action_default in oldV:
@@ -137,14 +185,21 @@ while True:
                             if 'type' in port and 'tags' in port and port['type'] == 'access' and not tag_exclude in port['tags']: #is it access port and not excluded?
                                 newTag = port['tags'].replace(tag_action_default,'').strip()
                                 newTag = newTag.replace(tag_action_isolate.upper(),'').strip()
+                                newTag = newTag.replace(tag_action_visolate.upper(),'').strip()
                                 newTag = newTag.replace(tag_action_isolate,'').strip()
+                                newTag = newTag.replace(tag_action_visolate,'').strip()
+
                                 print("WRITING")
                                 if 'D' in vqd:
                                     dvlan = int(vqd['D'])
                                 else:
                                     dvlan = dvlan_default
+                                if 'V' in vqd:
+                                    vvlan = int(vqd['V'])
+                                else:
+                                    vvlan = vvlan_default
                                 if(WRITE): 
-                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, name="", vlan=dvlan,tags=newTag, isolationEnabled=False)
+                                    result = db.switch_ports.updateDeviceSwitchPort(sn,switchPort, name="", vlan=dvlan, voiceVlan=vvlan, tags=newTag, isolationEnabled=False)
                                     os.system(f'./autoQ_bounce.py {sn} {switchPort} {bounce} &')
                                 #print(result)
                             elif 'type' in port and not port['type'] == 'access':
